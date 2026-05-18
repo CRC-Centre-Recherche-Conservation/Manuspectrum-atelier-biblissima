@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ManuSpectrum — Modèle conceptuel</title>
+<style>
+  :root{
+    --ink:#1c1a17; --paper:#faf7f1; --muted:#6f6a61; --line:#e3ddd0;
+    --obj:#c97b2d;  --obj-bg:#fbeedd;
+    --proc:#1f8a8a; --proc-bg:#e0f1f0;
+    --act:#6a5acd;  --act-bg:#e9e6f8;
+    --gold:#b08433;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:16px/1.6 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+        color:var(--ink);background:var(--paper);
+        background-image:radial-gradient(circle at 1px 1px,#e8e1d3 1px,transparent 0);
+        background-size:26px 26px}
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 28px 90px}
+  header{border-bottom:3px solid var(--ink);padding-bottom:24px;margin-bottom:18px}
+  .kicker{letter-spacing:.22em;text-transform:uppercase;font-size:12px;color:var(--gold);font-weight:700}
+  h1{font-size:clamp(34px,5vw,56px);line-height:1.05;margin:.18em 0 .1em;font-weight:800}
+  p{text-align:justify;text-justify:inter-word;hyphens:auto}
+  .sub{color:var(--muted);font-size:18px}
+  h2{font-size:27px;margin:56px 0 6px;font-weight:800;display:flex;align-items:baseline;gap:12px}
+  h2 .n{font-size:14px;color:var(--gold);font-weight:700;letter-spacing:.1em}
+  h3{font-size:18px;margin:26px 0 8px}
+  p.lead{font-size:17px;color:#3a352e}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;
+        box-shadow:0 1px 0 #fff,0 8px 24px -18px rgba(0,0,0,.35)}
+  .card .tag{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+  .card h3{margin:6px 0 6px;font-size:17px}
+  .card p{margin:0;font-size:14px;color:var(--muted)}
+  .fam-obj .tag{color:var(--obj)} .fam-proc .tag{color:var(--proc)} .fam-act .tag{color:var(--act)}
+  .fam-obj{border-top:4px solid var(--obj)} .fam-proc{border-top:4px solid var(--proc)} .fam-act{border-top:4px solid var(--act)}
+
+  /* diagram */
+  .figure{position:relative;background:#fffdf8;border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:22px;
+          box-shadow:0 18px 40px -34px rgba(0,0,0,.5);overflow-x:auto}
+  svg{display:block;width:100%;min-width:780px;height:auto}
+  .zoom-btn{position:absolute;top:12px;right:12px;z-index:2;display:flex;align-items:center;gap:6px;
+            background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:13px;
+            font-weight:700;color:var(--ink);cursor:pointer;box-shadow:0 4px 12px -8px rgba(0,0,0,.5)}
+  .zoom-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .zoom-btn svg{width:15px;height:15px;min-width:0;display:inline}
+  .modal{position:fixed;inset:0;z-index:999;display:none;background:rgba(28,26,23,.78);
+         backdrop-filter:blur(2px);padding:3vh 3vw}
+  .modal.open{display:flex;flex-direction:column}
+  .modal-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;color:#fff}
+  .modal-bar .t{font-weight:700;font-size:15px}
+  .modal-tools{display:flex;gap:8px}
+  .modal-tools button{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3);
+         width:34px;height:34px;border-radius:8px;font-size:17px;font-weight:700;cursor:pointer;line-height:1}
+  .modal-tools button:hover{background:rgba(255,255,255,.28)}
+  .modal-stage{flex:1;overflow:hidden;border-radius:14px;background:#fffdf8;
+         display:flex;align-items:center;justify-content:center;cursor:grab}
+  .modal-stage.grabbing{cursor:grabbing}
+  .modal-stage svg{width:100%;height:100%;min-width:0;transform-origin:center center;
+         transition:transform .08s linear}
+  @media print{.zoom-btn{display:none}.modal{display:none!important}}
+  .node rect{rx:13;ry:13;stroke-width:1.5;cursor:pointer;transition:transform .12s}
+  .node text{font-weight:700;font-size:15px;pointer-events:none}
+  .node .crm{font-weight:600;font-size:11px;fill:#fff;opacity:.92;pointer-events:none}
+  .o rect{fill:var(--obj-bg);stroke:var(--obj)} .o text{fill:#7a4711}
+  .p rect{fill:var(--proc-bg);stroke:var(--proc)} .p text{fill:#0f5a5a}
+  .a rect{fill:var(--act-bg);stroke:var(--act)} .a text{fill:#3f339a}
+  /* Arrow colour = the GROUP the relation belongs to / originates from.
+     core = observation scientifique (cœur) · obj = au sein de l'objet
+     ctx  = rattachement depuis le contexte commun · ann = transformations (annexe) */
+  .edge{fill:none;stroke-width:1.6}
+  .edge.core{stroke:var(--proc);stroke-width:2.4;marker-end:url(#aProc)}
+  .edge.obj{stroke:var(--obj);stroke-width:2.2;marker-end:url(#aObj)}
+  .edge.ctx{stroke:var(--act);stroke-width:1.9;marker-end:url(#aCtx)}
+  .edge.ann{stroke:#b6ad9b;stroke-width:1.4;stroke-dasharray:5 5;marker-end:url(#aAnn)}
+  .elabel{font-size:11px;fill:var(--muted)}
+  .elabel.c{fill:#0f5a5a;font-weight:700}
+  .corebox{fill:#f4faf9;stroke:var(--proc);stroke-width:1.2;stroke-dasharray:3 4;opacity:.55}
+  .coretag{font-size:12px;font-weight:800;letter-spacing:.16em;fill:var(--proc);opacity:.7}
+  .node.ann rect{fill:#f3efe6;stroke:#b9b1a0;stroke-dasharray:4 4}
+  .node.ann text{fill:#8a8270;font-size:14px}
+  .node.ann .crm{fill:#8a8270}
+  .grp{fill:none;stroke-width:1.4;rx:18;ry:18}
+  .grp.obj{stroke:var(--obj);fill:#fffaf3}
+  .grp.core{stroke:var(--proc);fill:#f4faf9}
+  .grp.ann{stroke:#b9b1a0;fill:#f6f3ec;stroke-dasharray:5 5}
+  .grp.ctx{stroke:var(--act);fill:#f6f5fd}
+  .grp-t{font-size:12.5px;font-weight:800;letter-spacing:.12em}
+  .grp-t.obj{fill:#a3611f}.grp-t.core{fill:#0f5a5a}.grp-t.ann{fill:#8a8270}.grp-t.ctx{fill:#4a3fae}
+  .cap{font-size:11.5px;fill:var(--muted)}
+  .cap.c{fill:#0f5a5a;font-weight:700}
+  .bracket{fill:none;stroke:var(--act);stroke-width:1.3}
+  .uni{font-size:13px;font-weight:800;fill:var(--act)}
+  .chip rect{rx:11;ry:11;stroke-width:1.4;cursor:pointer}
+  .chip text{font-weight:700;font-size:14px;pointer-events:none}
+  .chip .c2{font-size:10.5px;font-weight:600;pointer-events:none}
+  .chip.o rect{fill:var(--obj-bg);stroke:var(--obj)} .chip.o text{fill:#7a4711}.chip.o .c2{fill:#a3611f}
+  .chip.p rect{fill:#d9efed;stroke:var(--proc)} .chip.p text{fill:#0f5a5a}.chip.p .c2{fill:#2a7a78}
+  .chip.x rect{fill:#ece9fb;stroke:var(--act)} .chip.x text{fill:#3f339a}.chip.x .c2{fill:#6a5acd}
+  .chip.n rect{fill:#efe9df;stroke:#b9b1a0;stroke-dasharray:4 3} .chip.n text{fill:#7d7563}.chip.n .c2{fill:#9a9279}
+  .chip.dash rect{stroke-dasharray:5 4}
+  .chip.smp rect{fill:#e6eef6;stroke:#3b6ea5;stroke-dasharray:5 4}
+  .chip.smp text{fill:#274c73} .chip.smp .c2{fill:#3b6ea5}
+  .band{font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.5}
+
+  /* stats strip */
+  .stats{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0 4px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 18px;min-width:120px;
+        box-shadow:0 1px 0 #fff,0 8px 24px -20px rgba(0,0,0,.35)}
+  .stat .num{font-size:26px;font-weight:800;line-height:1;color:var(--ink)}
+  .stat .num small{font-size:15px;font-weight:700;color:var(--muted)}
+  .stat .lbl{display:block;font-size:12px;color:var(--muted);margin-top:5px}
+  .stat.o{border-top:3px solid var(--obj)} .stat.p{border-top:3px solid var(--proc)} .stat.a{border-top:3px solid var(--act)} .stat.g{border-top:3px solid var(--gold)}
+  .sep{border:0;height:1px;background:linear-gradient(90deg,transparent,var(--line) 18%,var(--line) 82%,transparent);margin:22px 0 4px}
+
+  /* models / granularity */
+  .models{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px;margin-top:18px}
+  .m{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;
+     transition:.15s;position:relative}
+  .m:hover{transform:translateY(-2px);box-shadow:0 14px 26px -20px rgba(0,0,0,.5)}
+  .m.o{border-left:5px solid var(--obj)} .m.p{border-left:5px solid var(--proc)} .m.a{border-left:5px solid var(--act)}
+  .m b{font-size:16px} .m .crmc{display:block;font-size:12px;color:var(--muted);margin:3px 0 8px;font-family:ui-monospace,monospace}
+  .m .ng{font-size:12px;color:#4a443c;display:none;border-top:1px dashed var(--line);padding-top:8px;margin-top:4px}
+  .m.open .ng{display:block}
+  .m .ng span{display:inline-block;background:#f1ece1;border-radius:6px;padding:1px 7px;margin:2px 3px 2px 0;font-size:11px}
+  .hint{font-size:12px;color:var(--muted)}
+  .vocab{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .v{background:#fff;border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:10px;
+     padding:9px 13px;font-size:14px}
+  .v small{display:block;color:var(--muted);font-size:12px}
+  .think{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:18px;counter-reset:s}
+  .step{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 16px 16px 16px;position:relative}
+  .step::before{counter-increment:s;content:counter(s);position:absolute;top:-13px;left:14px;
+     width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;
+     font-weight:800;font-size:14px}
+  .step b{display:block;margin:6px 0 4px} .step p{margin:0;font-size:14px;color:var(--muted)}
+  .pill{display:inline-block;background:var(--proc-bg);color:#0f5a5a;border:1px solid var(--proc);
+     border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700}
+  footer{margin-top:70px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:13px}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;margin:10px 0 0}
+  .legend i{width:13px;height:13px;border-radius:4px;display:inline-block;vertical-align:-1px;margin-right:6px}
+  .legend .legend-note{flex-basis:100%;color:#7d7563;font-size:12px;font-style:italic}
+  @media(max-width:760px){.grid3{grid-template-columns:1fr}}
+  @media print{body{background:#fff}.m{cursor:default}.m .ng{display:block}.figure{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Atelier Biblissima+ · Modèle conceptuel</div>
+  <h1>ManuSpectrum</h1>
+  <p class="sub">Un modèle de données pour la description scientifique du manuscrit&nbsp;: l'objet,
+  les analyses qui lui sont appliquées, et les connaissances qui en sont inférées — formalisés
+  sur une ontologie partagée (<strong>CIDOC‑CRM</strong> + <strong>CRMsci</strong>) pour des données
+  interopérables et réutilisables au sein de l'écosystème <strong>Biblissima+</strong>.</p>
+</header>
+
+<p class="lead">ManuSpectrum n'est pas un schéma «&nbsp;objet + attributs&nbsp;» mais un modèle
+<strong>événementiel</strong> (event‑centric, au sens du CIDOC‑CRM)&nbsp;: on ne décrit pas
+seulement <em>ce qu'est</em> un manuscrit, mais <em>les événements qui l'affectent</em> — production,
+échantillonnage, analyse, caractérisation, altération, modification. Chaque événement est daté,
+attribué à des acteurs, localisé et relié à des vocabulaires de référence&nbsp;; surtout, le modèle
+distingue explicitement le <strong>fait observé</strong> de l'<strong>inférence</strong> et conserve la
+<strong>source de chaque assertion</strong>. C'est cette traçabilité épistémique qui rend la donnée
+comparable, alignable et interopérable au‑delà d'une seule discipline (principes FAIR, Linked Open Data).</p>
+
+<h2><span class="n">01</span> Trois niveaux d'abstraction</h2>
+<p class="lead">Le modèle s'articule sur trois niveaux complémentaires&nbsp;: l'ontologie (la sémantique),
+les modèles de ressources (la structure), les vocabulaires (les valeurs).</p>
+<div class="grid3">
+  <div class="card fam-obj">
+    <div class="tag">Niveau 1 · Ontologie</div>
+    <h3>Sémantique partagée</h3>
+    <p>Tout est formalisé sur le <strong>CIDOC‑CRM v7.1.2</strong> (ontologie ISO&nbsp;21127 du
+    patrimoine culturel) et son extension <strong>CRMsci</strong> (observation scientifique).
+    Réutiliser des classes standard plutôt que des catégories <em>ad hoc</em> garantit
+    l'alignement avec d'autres corpus.</p>
+  </div>
+  <div class="card fam-proc">
+    <div class="tag">Niveau 2 · Modèles</div>
+    <h3>12 ressources reliées</h3>
+    <p>Le domaine est décomposé en entités autonomes (Manuscrit, Composant, Échantillon,
+    Analyse…) interconnectées par <strong>84 relations typées</strong>. Chaque ressource
+    possède sa propre granularité interne (groupes de champs).</p>
+  </div>
+  <div class="card fam-act">
+    <div class="tag">Niveau 3 · Vocabulaires</div>
+    <h3>Référentiels contrôlés</h3>
+    <p>Les valeurs typées (technique d'analyse, matériau, type d'œuvre…) ne sont pas du texte
+    libre&nbsp;: elles référencent des <strong>thésaurus normalisés</strong> (Getty&nbsp;AAT,
+    Pactols, AGORHA, LOTERRE…), résolvables et alignables.</p>
+  </div>
+</div>
+
+<h2><span class="n">02</span> La carte des ressources</h2>
+<p class="lead">Le modèle ne se lit pas comme une fiche pointant vers une autre, mais en
+<strong>quatre regroupements</strong> reliés par des relations <strong>plusieurs‑à‑plusieurs</strong>.
+La cardinalité n‑à‑n est ici structurante&nbsp;: une analyse porte sur plusieurs composants, une
+caractérisation agrège plusieurs analyses, un acteur intervient sur plusieurs activités.</p>
+
+<div class="grid3" style="grid-template-columns:1fr 1fr">
+  <div class="card fam-obj"><div class="tag">Objet étudié</div><h3>Manuscrit → Composant · Échantillon</h3>
+  <p>L'objet d'étude n'est pas monolithique&nbsp;: un Manuscrit se décompose en
+  <strong>Composants</strong> (unités codicologiques&nbsp;: feuillets, décor, zones d'image),
+  dont on peut prélever des <strong>Échantillons</strong>. Une observation cible l'un <em>ou</em>
+  plusieurs de ces niveaux.</p></div>
+  <div class="card fam-proc"><div class="tag">Observation · CRMsci</div><h3>Analyse → Caractérisation</h3>
+  <p>L'<strong>Analyse</strong> produit des <em>mesures</em> (spectrométrie, imagerie multimodale…).
+  La <strong>Caractérisation</strong> en infère une <em>interprétation</em> de la matérialité
+  (identification de matériaux, état de conservation), distincte de la donnée brute. Une
+  caractérisation s'appuie sur <em>plusieurs</em> analyses.</p></div>
+  <div class="card fam-act"><div class="tag">Contexte commun</div><h3>Acteur · Lieu · Projet · Instrument</h3>
+  <p>Un même tissu contextuel se rattache à <strong>toute activité</strong> (production, prélèvement,
+  analyse, caractérisation, modification). <strong>Acteur = Personne ∪ Groupe</strong>&nbsp;;
+  liens n‑à‑n, transversaux — c'est le socle de la traçabilité (qui, où, dans quel cadre).</p></div>
+  <div class="card" style="border-top:4px solid #b9b1a0"><div class="tag" style="color:#8a8270">Transformations subies</div>
+  <h3>Altération · Modification</h3>
+  <p>Événements secondaires qui <em>s'appliquent au</em> Manuscrit/Composant et décrivent son
+  évolution dans le temps. Distinction de modélisation assumée&nbsp;: l'objet <em>subit</em>
+  l'altération — il n'en est pas l'agent.</p></div>
+</div>
+
+<div class="figure">
+<button type="button" class="zoom-btn" id="zoomOpen" title="Agrandir le schéma" aria-label="Agrandir le schéma">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16" y1="16" x2="21" y2="21"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+  Agrandir
+</button>
+<svg viewBox="0 0 980 700" role="img" aria-label="Modèle conceptuel ManuSpectrum">
+  <defs>
+    <marker id="aProc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1f8a8a"></path>
+    </marker>
+    <marker id="aObj" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c97b2d"></path>
+    </marker>
+    <marker id="aCtx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6a5acd"></path>
+    </marker>
+    <marker id="aAnn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#b6ad9b"></path>
+    </marker>
+  </defs>
+
+  <!-- inter-group connectors (n–n) -->
+  <path class="edge core" d="M312,252 C336,226 384,250 432,195"></path>
+  <text class="cap" y="222" text-anchor="end" x="340">porte sur (n·n)</text>
+  <path class="edge ann" d="M648,252 C632,228 616,210 600,190"></path>
+  <text class="cap" y="222" x="640">agit sur (n·n)</text>
+  <path class="edge ann" d="M560,340 C520,340 472,340 444,340"></path>
+  <text class="cap" x="502" y="332" text-anchor="middle">observée par</text>
+  <path class="edge ctx" d="M280,470 C280,448 280,432 280,419"></path>
+  <path class="edge ctx" d="M700,470 C700,448 700,432 700,419"></path>
+  <path class="edge ctx" d="M852,470 C930,420 930,260 850,196"></path>
+  <text class="cap" x="490" y="450" text-anchor="middle">↑ Acteur · Lieu · Projet · Instrument se rattachent à TOUTE activité (production · prélèvement · analyse · caractérisation · modification) — n·n</text>
+
+  <!-- GROUP : OBJET ÉTUDIÉ -->
+  <rect class="grp obj" x="120" y="42" width="740" height="150" rx="18"></rect>
+  <text class="grp-t obj" x="490" y="63" text-anchor="middle">OBJET ÉTUDIÉ — CE QU'ON DÉCRIT</text>
+  <g class="chip o" data-k="Document">
+    <rect x="150" y="80" width="180" height="62"></rect>
+    <text x="240" y="108" text-anchor="middle">Manuscrit</text>
+    <text x="240" y="125" text-anchor="middle" class="c2">E22 Human-Made Object</text>
+  </g>
+  <g class="chip o" data-k="Component">
+    <rect x="500" y="80" width="180" height="62"></rect>
+    <text x="590" y="108" text-anchor="middle">Composant</text>
+    <text x="590" y="125" text-anchor="middle" class="c2">E36 Visual Item</text>
+  </g>
+  <g class="chip o smp" data-k="Sample">
+    <rect x="690" y="80" width="160" height="62"></rect>
+    <text x="770" y="108" text-anchor="middle">Échantillon</text>
+    <text x="770" y="125" text-anchor="middle" class="c2">S13 Sample · CRMsci</text>
+  </g>
+  <path class="edge obj" d="M330,111 L500,111"></path>
+  <text class="cap c" x="415" y="102" text-anchor="middle">P46 a pour partie</text>
+  <text class="cap" x="490" y="176" text-anchor="middle">Manuscrit —1·n→ Composant&nbsp;&nbsp;·&nbsp;&nbsp;Échantillon prélevé sur l'objet</text>
+
+  <!-- GROUP : OBSERVATION SCIENTIFIQUE -->
+  <rect class="grp core" x="120" y="252" width="320" height="165" rx="18"></rect>
+  <text class="grp-t core" x="280" y="273" text-anchor="middle">OBSERVATION SCIENTIFIQUE · CRMsci</text>
+  <g class="chip p" data-k="Analysis">
+    <rect x="138" y="290" width="132" height="60"></rect>
+    <text x="204" y="316" text-anchor="middle">Analyse</text>
+    <text x="204" y="333" text-anchor="middle" class="c2">S21 Measurement</text>
+  </g>
+  <g class="chip p" data-k="Characterization">
+    <rect x="290" y="290" width="134" height="60"></rect>
+    <text x="357" y="316" text-anchor="middle">Caractérisation</text>
+    <text x="357" y="333" text-anchor="middle" class="c2">S4 Observation</text>
+  </g>
+  <path class="edge core" d="M270,320 C277,320 281,320 288,320"></path>
+  <text class="cap" x="280" y="392" text-anchor="middle">mesures → interprétation physico-chimique</text>
+
+  <!-- GROUP : TRANSFORMATIONS SUBIES -->
+  <rect class="grp ann" x="560" y="252" width="300" height="165" rx="18"></rect>
+  <text class="grp-t ann" x="710" y="273" text-anchor="middle">TRANSFORMATIONS SUBIES · CRMsci</text>
+  <g class="chip n" data-k="Alteration">
+    <rect x="578" y="292" width="128" height="58"></rect>
+    <text x="642" y="316" text-anchor="middle">Altération</text>
+    <text x="642" y="333" text-anchor="middle" class="c2">S18 Alteration</text>
+  </g>
+  <g class="chip n" data-k="Modification">
+    <rect x="720" y="292" width="128" height="58"></rect>
+    <text x="784" y="316" text-anchor="middle">Modification</text>
+    <text x="784" y="333" text-anchor="middle" class="c2">E11 Modification</text>
+  </g>
+  <text class="cap" x="710" y="392" text-anchor="middle">comment l'objet change dans le temps</text>
+
+  <!-- GROUP : CONTEXTE COMMUN -->
+  <rect class="grp ctx" x="120" y="470" width="740" rx="18" height="200"></rect>
+  <text class="grp-t ctx" x="490" y="491" text-anchor="middle">CONTEXTE COMMUN — RATTACHÉ À TOUTE ACTIVITÉ</text>
+  <rect class="grp ctx" x="142" y="508" width="240" height="84" rx="14"></rect>
+  <text class="uni" x="262" y="523" text-anchor="middle">ACTEUR = Personne ∪ Groupe</text>
+  <g class="chip x" data-k="Person">
+    <rect x="154" y="530" width="104" height="52"></rect>
+    <text x="206" y="552" text-anchor="middle">Personne</text>
+    <text x="206" y="568" text-anchor="middle" class="c2">E21 Person</text>
+  </g>
+  <g class="chip x" data-k="Group">
+    <rect x="266" y="530" width="104" height="52"></rect>
+    <text x="318" y="552" text-anchor="middle">Groupe</text>
+    <text x="318" y="568" text-anchor="middle" class="c2">E74 Group</text>
+  </g>
+  <g class="chip x" data-k="Place">
+    <rect x="404" y="530" width="110" height="52"></rect>
+    <text x="459" y="552" text-anchor="middle">Lieu</text>
+    <text x="459" y="568" text-anchor="middle" class="c2">E53 Place</text>
+  </g>
+  <g class="chip x" data-k="Project">
+    <rect x="530" y="530" width="120" height="52"></rect>
+    <text x="590" y="552" text-anchor="middle">Projet</text>
+    <text x="590" y="568" text-anchor="middle" class="c2">E7 Activity</text>
+  </g>
+  <g class="chip x dash" data-k="Intrument">
+    <rect x="666" y="530" width="172" height="52"></rect>
+    <text x="752" y="552" text-anchor="middle">Instrument</text>
+    <text x="752" y="568" text-anchor="middle" class="c2">E22 Human-Made Object</text>
+  </g>
+  <path class="edge ctx" d="M300,592 C320,614 470,614 560,584"></path>
+  <text class="cap c" x="430" text-anchor="middle" y="620">mène · carried out by Actor (n·n)</text>
+</svg>
+</div>
+<p class="hint">Interactif&nbsp;: cliquez une ressource ci‑dessous pour déplier sa granularité réelle
+(ses <em>nodegroups</em>, lus dans la base) ; cliquez une entité du schéma pour y accéder directement.</p>
+
+<h2><span class="n">03</span> Granularité de chaque modèle</h2>
+<p class="lead">Chaque ressource est décomposée en groupes de champs (<em>nodegroups</em>)&nbsp;:
+identité, dénomination, datation, dimensions, assertions sourcées… Cette granularité fine
+opérationnalise la distinction fait&nbsp;/&nbsp;inférence et la citabilité de chaque source
+— condition d'une donnée critique et vérifiable.</p>
+
+<div class="stats">
+  <div class="stat o"><span class="num">12</span><span class="lbl">modèles de ressources</span></div>
+  <div class="stat p"><span class="num">169</span><span class="lbl">groupes de champs <em>(nodegroups)</em></span></div>
+  <div class="stat p"><span class="num">580</span><span class="lbl">nœuds au total<br>dont 452 de données</span></div>
+  <div class="stat g"><span class="num">49</span><span class="lbl">classes CIDOC‑CRM / CRMsci</span></div>
+  <div class="stat g"><span class="num">77</span><span class="lbl">propriétés CIDOC‑CRM</span></div>
+  <div class="stat a"><span class="num">84</span><span class="lbl">relations entre ressources</span></div>
+  <div class="stat o"><span class="num">20</span><span class="lbl">datatypes Arches</span></div>
+  <div class="stat g"><span class="num">12</span><span class="lbl">thésaurus <em>(~20 000 concepts)</em></span></div>
+  <div class="stat g"><span class="num">32</span><span class="lbl">collections (listes contrôlées)</span></div>
+</div>
+<hr class="sep">
+
+<div class="models" id="models"></div>
+
+<h2><span class="n">04</span> Le schéma de pensée&nbsp;: l'objet vu comme une suite d'événements</h2>
+<p class="lead"><strong>Le principe directeur&nbsp;:</strong> on ne décrit pas un objet par une fiche
+figée, mais la <strong>trajectoire scientifique</strong> d'un objet — qui n'est jamais une entité
+unique (Manuscrit -> Composant/Échantillon) — via une suite d'<strong>événements</strong>
+(prélever, mesurer, caractériser, transformer) tous rattachés au même <strong>contexte</strong>
+(quel acteur&nbsp;? quel lieu&nbsp;? quel projet&nbsp;? quel instrument&nbsp;?) par des relations
+<strong>plusieurs‑à‑plusieurs</strong>. CIDOC‑CRM/CRMsci fournit la sémantique, les thésaurus
+contraignent les valeurs. La chaîne se lit ainsi&nbsp;:</p>
+<div class="think">
+  <div class="step"><b>L'objet</b><p>Un <strong>Manuscrit</strong> et ses <strong>Composants</strong> (unités codicologiques&nbsp;: feuillets, décor, zones d'image annotables).</p></div>
+  <div class="step"><b>Le prélèvement</b><p>Un <strong>Échantillon</strong> (CRMsci S13) peut être prélevé&nbsp;: l'événement de prélèvement (qui, quand, où, sur quel composant) est réifié — l'objet et le geste ne sont pas confondus.</p></div>
+  <div class="step"><b>L'analyse</b><p>Une <strong>Analyse</strong> (S21 Measurement) — spectrométrie, imagerie, séries spectrales — est conduite avec un <strong>Instrument</strong>&nbsp;: elle produit des <em>mesures</em>, données primaires non interprétées.</p></div>
+  <div class="step"><b>La caractérisation</b><p>Interprétation de la <strong>matérialité</strong>&nbsp;: à partir d'une ou plusieurs <strong>Analyses</strong>, la <strong>Caractérisation</strong> (S4 Observation) qualifie le manuscrit ou ses composants (matériaux, état de conservation…) — niveau inférentiel, distinct des données brutes.</p></div>
+  <div class="step"><b>Les transformations subies</b><p><strong>Altération</strong> (S18) et <strong>Modification</strong> (E11) <em>s'appliquent au</em> Manuscrit/Composant&nbsp;: elles documentent son évolution diachronique.</p></div>
+  <div class="step"><b>Le contexte</b><p>Toute activité peut être attribuée à des <strong>Acteurs</strong> (Personne/Groupe), un <strong>Lieu</strong>, un <strong>Projet</strong> cadrant la campagne, et l'<strong>Instrument</strong> mobilisé.</p></div>
+</div>
+
+<h2><span class="n">05</span> Les thésaurus mobilisés</h2>
+<p class="lead">Les champs contrôlés référencent des vocabulaires de référence — internes et externes —
+résolvables et alignables, gage d'interopérabilité sémantique et de réconciliation entre corpus&nbsp;:</p>
+<div class="vocab">
+  <div class="v">Getty&nbsp;AAT<small>Art &amp; Architecture Thesaurus</small></div>
+  <div class="v">Frantiq&nbsp;Pactols<small>Sujets &amp; lieux archéologiques</small></div>
+  <div class="v">AGORHA<small>Matériaux, types d'œuvre, techniques (INHA)</small></div>
+  <div class="v">LOTERRE<small>Vocabulaire scientifique multidisciplinaire</small></div>
+  <div class="v">TAPAC / Frollo<small>Techniques d'analyse &amp; d'examen</small></div>
+  
+</div>
+
+<footer>
+  <strong>ManuSpectrum</strong> · Biblissima+ · Ontologie CIDOC‑CRM v7.1.2 + CRMsci · 12 modèles de ressources · 84 relations
+</footer>
+
+</div>
+
+<div class="modal" id="diagModal" role="dialog" aria-modal="true" aria-label="Schéma agrandi">
+  <div class="modal-bar">
+    <span class="t">Modèle conceptuel ManuSpectrum — molette pour zoomer, glisser pour déplacer</span>
+    <div class="modal-tools">
+      <button type="button" data-act="out" title="Dézoomer" aria-label="Dézoomer">−</button>
+      <button type="button" data-act="reset" title="Réinitialiser" aria-label="Réinitialiser">⤢</button>
+      <button type="button" data-act="in" title="Zoomer" aria-label="Zoomer">+</button>
+      <button type="button" data-act="close" title="Fermer (Échap)" aria-label="Fermer">✕</button>
+    </div>
+  </div>
+  <div class="modal-stage"></div>
+</div>
+
+<script>
+const DATA = { "Alteration" : [["Alteration took place at Place", 0], ["Occured in presence of material", 0], ["Alteration process period", 1], ["Observation analysis", 2], ["Data evaluation", 0], ["Inference making", 6], ["Period alternative", 5], ["Identifier", 3], ["TimeSpan about alteration process", 5], ["Name of statement", 3], ["Object altered", 3], ["Type", 0], ["Statement", 4], ["Name", 3]], "Analysis" : [["Instrument", 1], ["Micro/macro imaging", 0], ["Publication author", 0], ["Measurement Point data", 0], ["Bibliographic identifier", 2], ["Chemical/physical imaging", 0], ["Bibliographic reference", 6], ["Name", 3], ["Data resource", 3], ["Analysis date event", 2], ["Name of statement", 3], ["Scientific imagery", 0], ["Performed by Actor", 0], ["Object observed", 5], ["Sample used", 0], ["Analysis took place at Place", 0], ["Analysis technique used", 0], ["Statement", 4], ["Identifier", 3], ["Analysis by Project", 0]], "Characterization" : [["Inference making", 6], ["Name", 4], ["Observed materials", 2], ["Object observed", 4], ["Data evaluation", 0], ["Observation analysis", 2], ["Statement", 4], ["Dimension", 3], ["Name of statement", 3]], "Component" : [["Iconographic representation", 0], ["Location in Document", 1], ["Production", 13], ["Production period", 1], ["Description features", 0], ["Period alternative of production", 5], ["Color features", 0], ["Type", 0], ["Name of statement", 3], ["Name", 3], ["Is human feature", 1], ["Identifier", 3], ["Statement", 4], ["Context", 0]], "Document" : [["Production", 11], ["Period production", 1], ["Facsimiles", 0], ["Forms part of Document", 0], ["Alternative period production", 5], ["Name", 3], ["Type", 0], ["Name of statement", 3], ["Identifier", 3], ["Statement", 4], ["Consists of material parts", 4], ["Dimension", 3], ["Current location", 1], ["Current owner", 0]], "Group" : [["Formation period", 1], ["Location", 1], ["Dissolution period", 1], ["Dissolution timespan", 5], ["Formation timespan", 5], ["Name", 3], ["Alternative period formation", 5], ["Alternative period dissolution", 5], ["Identifier", 3], ["Statement", 4], ["People type", 0], ["Name of statement", 3], ["Temporality", 0], ["Type", 0], ["Member of Group", 0], ["Formation", 0], ["Dissolution", 0]], "Intrument" : [["Publication author", 0], ["Name", 3], ["Bibliographic reference", 7], ["Type", 0], ["Techniques", 0], ["Identifier", 3], ["Name of statement", 3], ["Bibliographic identifier", 2], ["Statement", 4], ["Production", 11], ["Dimension", 3], ["Forms part of Instrument", 0], ["Current owner", 0], ["Current location", 1]], "Modification" : [["Statement", 4], ["Name", 3], ["Description process", 0], ["Technique", 0], ["Observed by Characterisation", 0], ["Modification date", 5], ["Took place at Place", 1], ["Carried out by Actor", 0], ["Modification period", 1], ["Document modified", 3], ["Identifier", 3], ["Alternative modification period", 5], ["Name of statement", 3]], "Person" : [["Leaving group period", 1], ["TimeSpan of leaving Group", 5], ["Joining Group", 0], ["TimeSpan of joining Group", 5], ["Name", 3], ["People Type", 0], ["Alternative birth period", 5], ["Profession activity", 0], ["Alternative joining group period", 5], ["Leaving Group", 0], ["Alternative leaving group period", 5], ["Alternative death period", 5], ["Identifier", 3], ["Statement", 4], ["Name of statement", 3], ["Joining group period", 1], ["Death period", 1], ["Gender", 0], ["Birth period", 1], ["Temporality", 0], ["Member of Group", 0], ["Birth", 6], ["Death", 6]], "Place" : [["Period", 1], ["Part of Places", 0], ["Period alternative", 5], ["Literal location", 0], ["Similar of Places", 0], ["Name", 4], ["Name of statement", 3], ["Identifier", 3], ["Type", 0], ["Statement", 4]], "Project" : [["Name", 3], ["Studied object", 0], ["Type", 0], ["Identifier", 3], ["Statement", 4], ["Techniques", 0], ["Name of statement", 3], ["Part of Project", 0], ["Influenced by Project", 0], ["Carried out by Actor", 0], ["Period activity", 3]], "Sample" : [["TimeSpan of sample taking", 2], ["Statement about sample taking activity", 4], ["Sample object", 3], ["Identifier", 3], ["Name", 3], ["Statement", 4], ["Name of statement", 3], ["Dimension", 3], ["Name of Statement about sample taking activity", 3], ["Sample taking", 8]] };
+const FAM = {
+  Document:["o","E22 Human-Made Object"], Component:["o","E36 Visual Item"],
+  Sample:["o","S13 Sample (CRMsci)"], Intrument:["a","E22 Human-Made Object"],
+  Analysis:["p","S21 Measurement (CRMsci)"], Characterization:["p","S4 Observation (CRMsci)"],
+  Alteration:["p","S18 Alteration (CRMsci)"], Modification:["p","E11 Modification"],
+  Person:["a","E21 Person"], Group:["a","E74 Group"],
+  Project:["a","E7 Activity"], Place:["a","E53 Place"]
+};
+const LABELS = {Document:"Manuscrit",Component:"Composant",Sample:"Échantillon",
+  Intrument:"Instrument",Analysis:"Analyse",Characterization:"Caractérisation",
+  Alteration:"Altération",Modification:"Modification",Person:"Personne",
+  Group:"Groupe",Project:"Projet",Place:"Lieu"};
+const ORDER = ["Document","Component","Sample","Intrument","Analysis","Characterization",
+  "Alteration","Modification","Person","Group","Project","Place"];
+
+const root = document.getElementById('models');
+ORDER.forEach(k=>{
+  const [fam,crm] = FAM[k];
+  const ngs = (DATA[k]||[]).slice().sort((a,b)=>b[1]-a[1]);
+  const el = document.createElement('div');
+  el.className = 'm '+fam;
+  el.innerHTML = `<b>${LABELS[k]}</b><span class="crmc">${crm}</span>
+    <span class="hint">${ngs.length} groupes de champs · cliquer pour déplier</span>
+    <div class="ng">${ngs.map(n=>`<span>${n[0]}${n[1]?' ·'+n[1]:''}</span>`).join('')}</div>`;
+  el.addEventListener('click',()=>el.classList.toggle('open'));
+  root.appendChild(el);
+});
+
+// link diagram nodes to cards
+document.querySelectorAll('svg .chip').forEach(n=>{
+  n.addEventListener('click',()=>{
+    const k=n.dataset.k;
+    const card=[...document.querySelectorAll('.m')].find(m=>m.querySelector('b').textContent===LABELS[k]);
+    if(card){card.classList.add('open');card.scrollIntoView({behavior:'smooth',block:'center'});
+      card.style.outline='3px solid var(--gold)';setTimeout(()=>card.style.outline='',1400);}
+  });
+});
+
+// ---- zoom modal for the diagram ----
+(function(){
+  const fig = document.querySelector('.figure > svg');
+  const openBtn = document.getElementById('zoomOpen');
+  const modal = document.getElementById('diagModal');
+  if(!fig||!openBtn||!modal) return;
+  const stage = modal.querySelector('.modal-stage');
+  let scale=1, tx=0, ty=0, dragging=false, sx=0, sy=0;
+
+  function apply(){ const s=stage.querySelector('svg');
+    if(s) s.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
+  function setScale(next){ scale=Math.min(6,Math.max(0.5,next)); apply(); }
+
+  function open(){
+    stage.innerHTML='';
+    const clone=fig.cloneNode(true);
+    clone.removeAttribute('width'); clone.removeAttribute('height');
+    stage.appendChild(clone);
+    scale=1; tx=0; ty=0; apply();
+    modal.classList.add('open');
+    document.body.style.overflow='hidden';
+  }
+  function close(){ modal.classList.remove('open'); document.body.style.overflow=''; }
+
+  openBtn.addEventListener('click', open);
+  modal.querySelector('[data-act="close"]').addEventListener('click', close);
+  modal.querySelector('[data-act="in"]').addEventListener('click', ()=>setScale(scale*1.25));
+  modal.querySelector('[data-act="out"]').addEventListener('click', ()=>setScale(scale/1.25));
+  modal.querySelector('[data-act="reset"]').addEventListener('click', ()=>{scale=1;tx=0;ty=0;apply();});
+  modal.addEventListener('click', e=>{ if(e.target===modal) close(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&modal.classList.contains('open')) close(); });
+
+  stage.addEventListener('wheel', e=>{ e.preventDefault();
+    setScale(scale * (e.deltaY<0?1.12:0.89)); }, {passive:false});
+  stage.addEventListener('pointerdown', e=>{ dragging=true; stage.classList.add('grabbing');
+    sx=e.clientX-tx; sy=e.clientY-ty; stage.setPointerCapture(e.pointerId); });
+  stage.addEventListener('pointermove', e=>{ if(!dragging) return;
+    tx=e.clientX-sx; ty=e.clientY-sy; apply(); });
+  stage.addEventListener('pointerup', e=>{ dragging=false; stage.classList.remove('grabbing'); });
+})();
+</script>
+
+</body>
+</html>
